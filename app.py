@@ -9,9 +9,11 @@ from functools import wraps
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
+db_path = './db/lotto.db'
+
 # 데이터베이스 초기화
 def init_db():
-    conn = sqlite3.connect('lotto.db')
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS users (
@@ -58,7 +60,7 @@ def register():
         username = request.form['username']
         password = request.form['password']
         
-        conn = sqlite3.connect('lotto.db')
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
         # 사용자 존재 여부 확인
@@ -86,7 +88,7 @@ def login():
         username = request.form['username']
         password = request.form['password']
         
-        conn = sqlite3.connect('lotto.db')
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
         cursor.execute('SELECT id, password FROM users WHERE username = ?', (username,))
@@ -113,7 +115,7 @@ def logout():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    conn = sqlite3.connect('lotto.db')
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute('SELECT numbers, created_at FROM saved_numbers WHERE user_id = ? ORDER BY created_at DESC LIMIT 5', 
                   (session['user_id'],))
@@ -134,7 +136,7 @@ def generate():
     
     # 번호 저장
     if request.form.get('save') == 'yes':
-        conn = sqlite3.connect('lotto.db')
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute('INSERT INTO saved_numbers (user_id, numbers) VALUES (?, ?)', 
                      (session['user_id'], ','.join(map(str, numbers))))
@@ -147,7 +149,7 @@ def generate():
 @app.route('/history')
 @login_required
 def history():
-    conn = sqlite3.connect('lotto.db')
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute('SELECT numbers, created_at FROM saved_numbers WHERE user_id = ? ORDER BY created_at DESC', 
                   (session['user_id'],))
