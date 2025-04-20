@@ -1,0 +1,12 @@
+# docker-compose.yml
+version: '3'
+
+services:
+  lotto-app:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app
+      - ./lotto.db:/app/lotto.db
+    restart: unless-stopped

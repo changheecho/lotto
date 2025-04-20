@@ -1,0 +1,25 @@
+<!-- templates/history.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+    <h2>내 로또 번호 히스토리</h2>
+    
+    {% if history %}
+        {% for numbers, date in history %}
+            <div class="history-item">
+                <div>
+                    {% for number in numbers %}
+                        <span class="lotto-number">{{ number }}</span>
+                    {% endfor %}
+                </div>
+                <div style="font-size: 12px; color: #777; margin-top: 5px;">{{ date }}</div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>아직 저장된 로또 번호가 없습니다.</p>
+    {% endif %}
+    
+    <div style="text-align: center; margin-top: 20px;">
+        <a href="{{ url_for('dashboard') }}"><button>대시보드로 돌아가기</button></a>
+    </div>
+{% endblock %}

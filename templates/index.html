@@ -1,0 +1,14 @@
+<!-- templates/index.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+    <div style="text-align: center;">
+        <h2>로또 행운의 번호를 만나보세요!</h2>
+        <p>행운의 번호를 생성하려면 로그인해주세요.</p>
+        {% if 'user_id' not in session %}
+            <a href="{{ url_for('login') }}"><button>로그인하러 가기</button></a>
+        {% else %}
+            <a href="{{ url_for('dashboard') }}"><button>대시보드로 가기</button></a>
+        {% endif %}
+    </div>
+{% endblock %}

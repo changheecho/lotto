@@ -1,0 +1,14 @@
+<!-- templates/result.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+    <h2>로또 추천 번호</h2>
+    <div style="text-align: center; margin: 30px 0;">
+        {% for number in numbers %}
+            <span class="lotto-number">{{ number }}</span>
+        {% endfor %}
+    </div>
+    <div style="text-align: center; margin-top: 20px;">
+        <a href="{{ url_for('dashboard') }}"><button>대시보드로 돌아가기</button></a>
+    </div>
+{% endblock %}

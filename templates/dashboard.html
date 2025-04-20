@@ -1,0 +1,29 @@
+<!-- templates/dashboard.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+    <h2>어서오세요, {{ username }}님!</h2>
+    <div style="text-align: center; margin: 30px 0;">
+        <form method="post" action="{{ url_for('generate') }}">
+            <input type="hidden" name="save" value="yes">
+            <button type="submit" style="padding: 15px 30px; font-size: 18px;">행운의 로또 번호 생성하기</button>
+        </form>
+    </div>
+    
+    {% if history %}
+        <h3>최근 생성한 번호</h3>
+        {% for numbers, date in history %}
+            <div class="history-item">
+                <div>
+                    {% for number in numbers %}
+                        <span class="lotto-number">{{ number }}</span>
+                    {% endfor %}
+                </div>
+                <div style="font-size: 12px; color: #777; margin-top: 5px;">{{ date }}</div>
+            </div>
+        {% endfor %}
+        <div style="text-align: center; margin-top: 20px;">
+            <a href="{{ url_for('history') }}"><button>전체 히스토리 보기</button></a>
+        </div>
+    {% endif %}
+{% endblock %}
