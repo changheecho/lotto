@@ -1,7 +1,7 @@
 from flask import Flask, render_template, jsonify
 import random
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 from collections import Counter
 import statistics
@@ -26,17 +26,43 @@ def fetch_lotto_data(round_number):
     except:
         return None, None, None
 
-def get_latest_round():
-    """최신 회차 번호 찾기"""
-    # 현재 대략적인 회차 추정 (2024년 6월 기준 약 1170회차)
-    estimated_round = 1180
+def calculate_latest_round():
+    """현재 날짜를 기준으로 최신 회차 번호 계산"""
+    # 로또 1회차 추첨일: 2002년 12월 7일 (토요일)
+    first_draw_date = datetime(2002, 12, 7)
+    current_date = datetime.now()
     
-    # 최신 회차 찾기
-    for round_num in range(estimated_round, max(1, estimated_round - 50), -1):
+    # 현재 날짜까지의 주차 계산
+    days_passed = (current_date - first_draw_date).days
+    weeks_passed = days_passed // 7
+    
+    # 현재 주의 토요일이 지났는지 확인 (토요일이 추첨일)
+    current_weekday = current_date.weekday()  # 월요일=0, 토요일=5
+    
+    if current_weekday >= 5:  # 토요일(5) 또는 일요일(6)이면 해당 주차 추첨 완료
+        estimated_round = weeks_passed + 1
+    else:  # 월~금요일이면 이번 주 추첨은 아직 미완료
+        estimated_round = weeks_passed
+    
+    return max(1, estimated_round)
+
+def get_latest_round():
+    """최신 회차 번호 찾기 - 현재 날짜 기반 계산 + API 검증"""
+    estimated_round = calculate_latest_round()
+    
+    print(f"추정 최신 회차: {estimated_round}")
+    
+    # 추정된 회차부터 역순으로 검색하여 실제 최신 회차 찾기
+    # 최대 10회차 범위에서 검색
+    for round_num in range(estimated_round, max(1, estimated_round - 10), -1):
         numbers, bonus, date = fetch_lotto_data(round_num)
         if numbers:
+            print(f"실제 최신 회차: {round_num}")
             return round_num
-    return 1170  # 기본값
+    
+    # API 호출이 모두 실패한 경우 추정값 반환
+    print(f"API 호출 실패, 추정값 사용: {estimated_round}")
+    return estimated_round
 
 def analyze_historical_data(rounds_to_analyze=100):
     """과거 로또 데이터 분석"""
@@ -48,14 +74,18 @@ def analyze_historical_data(rounds_to_analyze=100):
     print(f"최신 회차: {latest_round}")
     
     # 최근 100회차 데이터 수집
+    successful_fetches = 0
     for round_num in range(max(1, latest_round - rounds_to_analyze + 1), latest_round + 1):
         numbers, bonus, date = fetch_lotto_data(round_num)
         if numbers:
             all_numbers.extend(numbers)
             all_bonus_numbers.append(bonus)
             recent_patterns.append(numbers)
-            print(f"{round_num}회: {numbers} + {bonus}")
+            successful_fetches += 1
+            if successful_fetches <= 10:  # 처음 10개만 출력
+                print(f"{round_num}회: {numbers} + {bonus}")
     
+    print(f"총 {successful_fetches}회차 데이터 수집 완료")
     return all_numbers, all_bonus_numbers, recent_patterns
 
 def generate_smart_lotto_numbers():
