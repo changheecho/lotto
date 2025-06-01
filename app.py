@@ -3,14 +3,127 @@ import random
 import requests
 from datetime import datetime, timedelta
 import json
+import os
 from collections import Counter
 import statistics
+import pickle
+import time
 
 app = Flask(__name__)
 
+# 캐시 설정
+CACHE_DIR = 'cache'
+CACHE_FILE = os.path.join(CACHE_DIR, 'lotto_data.pkl')
+CACHE_DURATION = 3600 * 24  # 24시간 (초 단위)
+
+# 캐시 디렉토리 생성
+os.makedirs(CACHE_DIR, exist_ok=True)
+
+class LottoCache:
+    def __init__(self):
+        self.data = {}
+        self.last_updated = {}
+        self.load_cache()
+    
+    def load_cache(self):
+        """캐시 파일에서 데이터 로드"""
+        try:
+            if os.path.exists(CACHE_FILE):
+                with open(CACHE_FILE, 'rb') as f:
+                    cache_data = pickle.load(f)
+                    self.data = cache_data.get('data', {})
+                    self.last_updated = cache_data.get('last_updated', {})
+                print(f"캐시 로드 완료: {len(self.data)}개 회차 데이터")
+        except Exception as e:
+            print(f"캐시 로드 실패: {e}")
+            self.data = {}
+            self.last_updated = {}
+    
+    def save_cache(self):
+        """캐시 데이터를 파일에 저장"""
+        try:
+            cache_data = {
+                'data': self.data,
+                'last_updated': self.last_updated
+            }
+            with open(CACHE_FILE, 'wb') as f:
+                pickle.dump(cache_data, f)
+            print(f"캐시 저장 완료: {len(self.data)}개 회차 데이터")
+        except Exception as e:
+            print(f"캐시 저장 실패: {e}")
+    
+    def is_cache_valid(self, round_number):
+        """캐시가 유효한지 확인"""
+        if round_number not in self.data:
+            return False
+        
+        last_update = self.last_updated.get(round_number, 0)
+        current_time = time.time()
+        
+        # 과거 회차는 변경되지 않으므로 캐시가 있으면 유효
+        # 최신 회차들만 시간 제한 적용
+        latest_round = calculate_latest_round()
+        if round_number < latest_round - 5:  # 5회차 이전 데이터는 영구 캐시
+            return True
+        
+        return (current_time - last_update) < CACHE_DURATION
+    
+    def get(self, round_number):
+        """캐시에서 데이터 가져오기"""
+        if self.is_cache_valid(round_number):
+            return self.data[round_number]
+        return None
+    
+    def set(self, round_number, numbers, bonus, date):
+        """캐시에 데이터 저장"""
+        self.data[round_number] = {
+            'numbers': numbers,
+            'bonus': bonus,
+            'date': date
+        }
+        self.last_updated[round_number] = time.time()
+        
+        # 주기적으로 캐시 파일 저장 (10개 데이터마다)
+        if len(self.data) % 10 == 0:
+            self.save_cache()
+    
+    def get_cached_rounds(self):
+        """캐시된 회차 목록 반환"""
+        return list(self.data.keys())
+    
+    def cleanup_old_cache(self, keep_recent=200):
+        """오래된 캐시 정리 (최근 N개 회차만 유지)"""
+        if len(self.data) <= keep_recent:
+            return
+        
+        sorted_rounds = sorted(self.data.keys(), reverse=True)
+        rounds_to_keep = sorted_rounds[:keep_recent]
+        
+        # 삭제할 회차들
+        rounds_to_delete = [r for r in self.data.keys() if r not in rounds_to_keep]
+        
+        for round_num in rounds_to_delete:
+            del self.data[round_num]
+            if round_num in self.last_updated:
+                del self.last_updated[round_num]
+        
+        print(f"캐시 정리 완료: {len(rounds_to_delete)}개 회차 삭제")
+        self.save_cache()
+
+# 글로벌 캐시 인스턴스
+lotto_cache = LottoCache()
+
 def fetch_lotto_data(round_number):
-    """동행복권 API에서 로또 당첨 번호 가져오기"""
+    """동행복권 API에서 로또 당첨 번호 가져오기 (캐시 적용)"""
+    # 캐시에서 먼저 확인
+    cached_data = lotto_cache.get(round_number)
+    if cached_data:
+        print(f"{round_number}회차 데이터 캐시에서 로드")
+        return cached_data['numbers'], cached_data['bonus'], cached_data['date']
+    
+    # 캐시에 없으면 API 호출
     try:
+        print(f"{round_number}회차 데이터 API에서 조회 중...")
         url = f"https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo={round_number}"
         response = requests.get(url, timeout=10)
         data = response.json()
@@ -21,9 +134,16 @@ def fetch_lotto_data(round_number):
                 data['drwtNo4'], data['drwtNo5'], data['drwtNo6']
             ]
             bonus = data['bnusNo']
-            return numbers, bonus, data['drwNoDate']
+            date = data['drwNoDate']
+            
+            # 캐시에 저장
+            lotto_cache.set(round_number, numbers, bonus, date)
+            print(f"{round_number}회차 데이터 캐시에 저장")
+            
+            return numbers, bonus, date
         return None, None, None
-    except:
+    except Exception as e:
+        print(f"API 호출 실패 ({round_number}회차): {e}")
         return None, None, None
 
 def calculate_latest_round():
@@ -47,13 +167,27 @@ def calculate_latest_round():
     return max(1, estimated_round)
 
 def get_latest_round():
-    """최신 회차 번호 찾기 - 현재 날짜 기반 계산 + API 검증"""
+    """최신 회차 번호 찾기 - 캐시 우선 + API 검증"""
     estimated_round = calculate_latest_round()
     
     print(f"추정 최신 회차: {estimated_round}")
     
+    # 캐시된 회차 중 최신 회차 확인
+    cached_rounds = lotto_cache.get_cached_rounds()
+    if cached_rounds:
+        max_cached_round = max(cached_rounds)
+        print(f"캐시된 최신 회차: {max_cached_round}")
+        
+        # 캐시된 최신 회차가 추정 회차와 비슷하면 캐시 사용
+        if abs(max_cached_round - estimated_round) <= 3:
+            # 캐시된 최신 회차부터 추정 회차까지 확인
+            for round_num in range(max_cached_round + 1, estimated_round + 1):
+                numbers, bonus, date = fetch_lotto_data(round_num)
+                if numbers:
+                    estimated_round = round_num
+            return estimated_round
+    
     # 추정된 회차부터 역순으로 검색하여 실제 최신 회차 찾기
-    # 최대 10회차 범위에서 검색
     for round_num in range(estimated_round, max(1, estimated_round - 10), -1):
         numbers, bonus, date = fetch_lotto_data(round_num)
         if numbers:
@@ -65,7 +199,7 @@ def get_latest_round():
     return estimated_round
 
 def analyze_historical_data(rounds_to_analyze=100):
-    """과거 로또 데이터 분석"""
+    """과거 로또 데이터 분석 (캐시 활용)"""
     latest_round = get_latest_round()
     all_numbers = []
     all_bonus_numbers = []
@@ -73,25 +207,49 @@ def analyze_historical_data(rounds_to_analyze=100):
     
     print(f"최신 회차: {latest_round}")
     
-    # 최근 100회차 데이터 수집
+    # 분석할 회차 범위 결정
+    start_round = max(1, latest_round - rounds_to_analyze + 1)
+    
+    print(f"분석 범위: {start_round}회차 ~ {latest_round}회차")
+    
+    # 캐시 상태 확인
+    cached_rounds = set(lotto_cache.get_cached_rounds())
+    needed_rounds = set(range(start_round, latest_round + 1))
+    uncached_rounds = needed_rounds - cached_rounds
+    
+    print(f"캐시된 회차: {len(cached_rounds & needed_rounds)}개")
+    print(f"API 조회 필요: {len(uncached_rounds)}개")
+    
+    # 데이터 수집
     successful_fetches = 0
-    for round_num in range(max(1, latest_round - rounds_to_analyze + 1), latest_round + 1):
+    for round_num in range(start_round, latest_round + 1):
         numbers, bonus, date = fetch_lotto_data(round_num)
         if numbers:
             all_numbers.extend(numbers)
             all_bonus_numbers.append(bonus)
             recent_patterns.append(numbers)
             successful_fetches += 1
-            if successful_fetches <= 10:  # 처음 10개만 출력
-                print(f"{round_num}회: {numbers} + {bonus}")
+            
+            # 처음 10개만 출력 (디버깅용)
+            if successful_fetches <= 10:
+                source = "캐시" if round_num in cached_rounds else "API"
+                print(f"{round_num}회({source}): {numbers} + {bonus}")
     
     print(f"총 {successful_fetches}회차 데이터 수집 완료")
+    
+    # 캐시 정리 (선택적)
+    if successful_fetches > 150:
+        lotto_cache.cleanup_old_cache(keep_recent=200)
+    
+    # 최종 캐시 저장
+    lotto_cache.save_cache()
+    
     return all_numbers, all_bonus_numbers, recent_patterns
 
 def generate_smart_lotto_numbers():
     """데이터 분석 기반 로또 번호 생성"""
     try:
-        # 과거 데이터 분석
+        # 과거 데이터 분석 (캐시 활용)
         all_numbers, all_bonus, recent_patterns = analyze_historical_data()
         
         if not all_numbers:
@@ -250,6 +408,20 @@ def generate():
         'analysis_type': analysis_type,
         'confidence_score': confidence_score,
         'generated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    })
+
+@app.route('/cache-status')
+def cache_status():
+    """캐시 상태 확인용 엔드포인트 (디버깅/모니터링용)"""
+    cached_rounds = lotto_cache.get_cached_rounds()
+    latest_round = get_latest_round()
+    
+    return jsonify({
+        'cached_rounds_count': len(cached_rounds),
+        'latest_cached_round': max(cached_rounds) if cached_rounds else None,
+        'estimated_latest_round': latest_round,
+        'cache_file_exists': os.path.exists(CACHE_FILE),
+        'cache_file_size': os.path.getsize(CACHE_FILE) if os.path.exists(CACHE_FILE) else 0
     })
 
 if __name__ == '__main__':
