@@ -1,14 +1,291 @@
-<!-- templates/index.html -->
-{% extends 'base.html' %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎰 로또 번호 추천 시스템</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-{% block content %}
-    <div style="text-align: center;">
-        <h2>로또 행운의 번호를 만나보세요!</h2>
-        <p>행운의 번호를 생성하려면 로그인해주세요.</p>
-        {% if 'user_id' not in session %}
-            <a href="{{ url_for('login') }}"><button>로그인하러 가기</button></a>
-        {% else %}
-            <a href="{{ url_for('dashboard') }}"><button>대시보드로 가기</button></a>
-        {% endif %}
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }
+
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .subtitle {
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .generate-btn {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.2em;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .generate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 25px rgba(0,0,0,0.2);
+        }
+
+        .generate-btn:active {
+            transform: translateY(0);
+        }
+
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            border-left: 5px solid #3498db;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.5s ease;
+        }
+
+        .result.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .numbers-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .number {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.1em;
+            animation: bounceIn 0.6s ease-out;
+            animation-fill-mode: both;
+        }
+
+        .number:nth-child(1) { background: #e74c3c; animation-delay: 0.1s; }
+        .number:nth-child(2) { background: #f39c12; animation-delay: 0.2s; }
+        .number:nth-child(3) { background: #f1c40f; animation-delay: 0.3s; }
+        .number:nth-child(4) { background: #27ae60; animation-delay: 0.4s; }
+        .number:nth-child(5) { background: #3498db; animation-delay: 0.5s; }
+        .number:nth-child(6) { background: #9b59b6; animation-delay: 0.6s; }
+
+        .bonus {
+            background: #e67e22 !important;
+            border: 3px solid #d35400;
+            animation-delay: 0.7s;
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0); opacity: 0; }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .message {
+            font-size: 1.3em;
+            color: #2c3e50;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+
+        .timestamp {
+            color: #7f8c8d;
+            font-size: 0.9em;
+            margin-top: 15px;
+        }
+
+        .bonus-label {
+            font-size: 0.9em;
+            color: #e67e22;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .loading {
+            display: none;
+            color: #3498db;
+            font-size: 1.1em;
+            margin: 20px 0;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+                margin: 20px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            .numbers-container {
+                gap: 8px;
+            }
+            
+            .number {
+                width: 40px;
+                height: 40px;
+                font-size: 1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎰 로또 번호 추천</h1>
+        <p class="subtitle">AI가 분석한 최고의 로또 번호를 받아보세요!</p>
+        
+        <button class="generate-btn" onclick="generateNumbers()">
+            🍀 행운의 번호 생성하기
+        </button>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            행운의 번호를 생성하고 있습니다...
+        </div>
+        
+        <div class="result" id="result">
+            <div class="message" id="message"></div>
+            <div class="numbers-container" id="numbers"></div>
+            <div class="bonus-label">보너스 번호</div>
+            <div class="numbers-container" id="bonus"></div>
+            <div class="timestamp" id="timestamp"></div>
+        </div>
     </div>
-{% endblock %}
+
+    <script>
+        async function generateNumbers() {
+            const loadingEl = document.getElementById('loading');
+            const resultEl = document.getElementById('result');
+            const btn = document.querySelector('.generate-btn');
+            
+            // 로딩 시작
+            btn.disabled = true;
+            btn.textContent = '생성 중...';
+            loadingEl.style.display = 'block';
+            resultEl.classList.remove('show');
+            
+            try {
+                // 약간의 지연으로 사용자 경험 향상
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                const response = await fetch('/generate');
+                const data = await response.json();
+                
+                // 결과 표시
+                displayResult(data);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('번호 생성 중 오류가 발생했습니다. 다시 시도해주세요.');
+            } finally {
+                // 로딩 종료
+                loadingEl.style.display = 'none';
+                btn.disabled = false;
+                btn.textContent = '🍀 행운의 번호 생성하기';
+            }
+        }
+        
+        function displayResult(data) {
+            const messageEl = document.getElementById('message');
+            const numbersEl = document.getElementById('numbers');
+            const bonusEl = document.getElementById('bonus');
+            const timestampEl = document.getElementById('timestamp');
+            const resultEl = document.getElementById('result');
+            
+            // 메시지 설정
+            messageEl.textContent = data.message;
+            
+            // 메인 번호 표시
+            numbersEl.innerHTML = '';
+            data.main_numbers.forEach(num => {
+                const numberDiv = document.createElement('div');
+                numberDiv.className = 'number';
+                numberDiv.textContent = num;
+                numbersEl.appendChild(numberDiv);
+            });
+            
+            // 보너스 번호 표시
+            bonusEl.innerHTML = '';
+            const bonusDiv = document.createElement('div');
+            bonusDiv.className = 'number bonus';
+            bonusDiv.textContent = data.bonus_number;
+            bonusEl.appendChild(bonusDiv);
+            
+            // 타임스탬프 설정
+            timestampEl.textContent = `생성 시간: ${data.generated_at}`;
+            
+            // 결과 표시
+            resultEl.classList.add('show');
+        }
+        
+        // 페이지 로드 시 첫 번호 자동 생성
+        window.addEventListener('load', function() {
+            setTimeout(generateNumbers, 500);
+        });
+    </script>
+</body>
+</html>
