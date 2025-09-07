@@ -206,19 +206,20 @@
 </head>
 <body>
     <div class="container">
+        <div style="text-align:right; margin-bottom:10px;">
+            <span style="font-size:0.95em; color:#555;">👤 {{ username }}님 환영합니다!</span>
+            <a href="/logout" style="margin-left:15px; color:#e74c3c; text-decoration:none; font-weight:bold;">로그아웃</a>
+        </div>
         <h1>🎰 AI 로또 번호 분석</h1>
         <p class="subtitle">1회차부터 최신회차까지 빅데이터 분석으로 차세대 로또 번호를 생성합니다!</p>
-        
         <button class="generate-btn" onclick="generateNumbers()">
             🧠 AI 빅데이터 분석 시작
         </button>
-        
         <div class="loading" id="loading">
             <div class="spinner"></div>
             AI가 역대 로또 데이터를 분석하고 있습니다...<br>
             <small>1회차부터 최신회차까지 패턴 분석 중</small>
         </div>
-        
         <div class="result" id="result">
             <div class="message" id="message"></div>
             <div class="analysis-info" id="analysisInfo"></div>

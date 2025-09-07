@@ -1,4 +1,5 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request, redirect, url_for, flash, session
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 import random
 import requests
 from datetime import datetime, timedelta
@@ -10,6 +11,31 @@ import pickle
 import time
 
 app = Flask(__name__)
+app.secret_key = 'your_secret_key_here'  # 실제 서비스에서는 환경변수로 관리하세요
+
+# Flask-Login 설정
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+# 임시 사용자 저장소 (실제 서비스에서는 DB 사용)
+USERS = {
+    'testuser': {'password': 'testpass'}
+}
+
+# User 모델
+class User(UserMixin):
+    def __init__(self, username):
+        self.id = username
+
+    def get_id(self):
+        return self.id
+
+@login_manager.user_loader
+def load_user(user_id):
+    if user_id in USERS:
+        return User(user_id)
+    return None
 
 # 캐시 설정
 CACHE_DIR = 'cache'
@@ -386,9 +412,35 @@ def get_analysis_message(analysis_type, confidence_score=None):
     
     return base_message
 
+
+# 로그인 페이지
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        user = USERS.get(username)
+        if user and user['password'] == password:
+            login_user(User(username))
+            flash('로그인 성공!', 'success')
+            return redirect(url_for('index'))
+        else:
+            flash('아이디 또는 비밀번호가 올바르지 않습니다.', 'danger')
+    return render_template('login.html')
+
+# 로그아웃
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('로그아웃 되었습니다.', 'info')
+    return redirect(url_for('login'))
+
+# 메인 페이지 (로그인 필요)
 @app.route('/')
+@login_required
 def index():
-    return render_template('index.html')
+    return render_template('index.html', username=current_user.get_id())
 
 @app.route('/generate')
 def generate():
