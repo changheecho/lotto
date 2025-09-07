@@ -344,62 +344,75 @@ def generate_smart_lotto_numbers():
     try:
         # 과거 데이터 분석 (캐시 활용)
         all_numbers, all_bonus, recent_patterns = analyze_historical_data()
-        
+
         if not all_numbers:
             # API 실패 시 기존 랜덤 방식 사용
             return generate_fallback_numbers()
-        
-        # 번호 출현 빈도 분석
-        number_frequency = Counter(all_numbers)
-        
-        # 최근 10회차 트렌드 분석
-        recent_numbers = []
-        if len(recent_patterns) >= 10:
-            for pattern in recent_patterns[-10:]:
-                recent_numbers.extend(pattern)
-        
-        recent_frequency = Counter(recent_numbers)
-        
-        # 가중치 계산 (전체 빈도 70% + 최근 트렌드 30%)
-        weighted_scores = {}
-        for num in range(1, 46):
-            total_freq = number_frequency.get(num, 0)
-            recent_freq = recent_frequency.get(num, 0)
-            weighted_scores[num] = (total_freq * 0.7) + (recent_freq * 0.3)
-        
-        # 상위 15개 번호와 하위 15개 번호, 중간 15개 번호로 분류
-        sorted_numbers = sorted(weighted_scores.items(), key=lambda x: x[1], reverse=True)
-        
-        hot_numbers = [num for num, score in sorted_numbers[:15]]      # 자주 나온 번호
-        cold_numbers = [num for num, score in sorted_numbers[-15:]]    # 적게 나온 번호
-        mid_numbers = [num for num, score in sorted_numbers[15:30]]    # 중간 번호
-        
-        # 균형잡힌 번호 선택 (hot 3개, mid 2개, cold 1개)
-        selected_numbers = []
-        selected_numbers.extend(random.sample(hot_numbers, 3))
-        selected_numbers.extend(random.sample(mid_numbers, 2))
-        selected_numbers.extend(random.sample(cold_numbers, 1))
-        
-        # 번호 범위 균형 맞추기 (1-15, 16-30, 31-45 구간별 균형)
-        if not is_balanced(selected_numbers):
-            selected_numbers = balance_number_ranges(selected_numbers, all_numbers)
-        
-        main_numbers = sorted(selected_numbers)
-        
-        # 보너스 번호 선택 (메인 번호와 중복 제거)
-        bonus_candidates = [i for i in range(1, 46) if i not in main_numbers]
-        bonus_frequency = Counter(all_bonus)
-        
-        # 보너스 번호도 가중치 적용
-        bonus_weights = []
-        for num in bonus_candidates:
-            weight = bonus_frequency.get(num, 1)  # 최소 가중치 1
-            bonus_weights.extend([num] * weight)
-        
-        bonus_number = random.choice(bonus_weights) if bonus_weights else random.choice(bonus_candidates)
-        
-        return main_numbers, bonus_number, "AI 분석"
-        
+
+        # 과거 1등 번호 조합(정렬된 튜플) 집합 생성
+        past_winner_sets = set(tuple(sorted(pattern)) for pattern in recent_patterns)
+
+        # 번호 생성 및 과거 1등 조합과 비교 반복 (최대 20회 시도)
+        for _ in range(20):
+            # 번호 출현 빈도 분석
+            number_frequency = Counter(all_numbers)
+
+            # 최근 10회차 트렌드 분석
+            recent_numbers = []
+            if len(recent_patterns) >= 10:
+                for pattern in recent_patterns[-10:]:
+                    recent_numbers.extend(pattern)
+
+            recent_frequency = Counter(recent_numbers)
+
+            # 가중치 계산 (전체 빈도 70% + 최근 트렌드 30%)
+            weighted_scores = {}
+            for num in range(1, 46):
+                total_freq = number_frequency.get(num, 0)
+                recent_freq = recent_frequency.get(num, 0)
+                weighted_scores[num] = (total_freq * 0.7) + (recent_freq * 0.3)
+
+            # 상위 15개 번호와 하위 15개 번호, 중간 15개 번호로 분류
+            sorted_numbers = sorted(weighted_scores.items(), key=lambda x: x[1], reverse=True)
+
+            hot_numbers = [num for num, score in sorted_numbers[:15]]      # 자주 나온 번호
+            cold_numbers = [num for num, score in sorted_numbers[-15:]]    # 적게 나온 번호
+            mid_numbers = [num for num, score in sorted_numbers[15:30]]    # 중간 번호
+
+            # 균형잡힌 번호 선택 (hot 3개, mid 2개, cold 1개)
+            selected_numbers = []
+            selected_numbers.extend(random.sample(hot_numbers, 3))
+            selected_numbers.extend(random.sample(mid_numbers, 2))
+            selected_numbers.extend(random.sample(cold_numbers, 1))
+
+            # 번호 범위 균형 맞추기 (1-15, 16-30, 31-45 구간별 균형)
+            if not is_balanced(selected_numbers):
+                selected_numbers = balance_number_ranges(selected_numbers, all_numbers)
+
+            main_numbers = sorted(selected_numbers)
+
+            # 과거 1등 조합과 동일하면 다시 생성
+            if tuple(main_numbers) in past_winner_sets:
+                continue
+
+            # 보너스 번호 선택 (메인 번호와 중복 제거)
+            bonus_candidates = [i for i in range(1, 46) if i not in main_numbers]
+            bonus_frequency = Counter(all_bonus)
+
+            # 보너스 번호도 가중치 적용
+            bonus_weights = []
+            for num in bonus_candidates:
+                weight = bonus_frequency.get(num, 1)  # 최소 가중치 1
+                bonus_weights.extend([num] * weight)
+
+            bonus_number = random.choice(bonus_weights) if bonus_weights else random.choice(bonus_candidates)
+
+            return main_numbers, bonus_number, "AI 분석"
+
+        # 20회 시도에도 불구하고 모두 과거 1등 조합과 겹치면 fallback
+        print("모든 시도에서 과거 1등 조합과 중복됨. 랜덤 번호 반환.")
+        return generate_fallback_numbers()
+
     except Exception as e:
         print(f"분석 중 오류: {e}")
         return generate_fallback_numbers()
