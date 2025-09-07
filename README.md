@@ -48,6 +48,7 @@ docker-compose --profile production up --build
 
 ## 📋 기능
 
+- **사용자 로그인**: 로그인한 사용자만 로또 번호 생성 서비스 이용 가능 (기본 계정: testuser / testpass)
 - **로또 번호 생성**: 1-45 범위에서 중복되지 않는 6개의 번호 생성
 - **보너스 번호**: 메인 번호와 중복되지 않는 보너스 번호 생성
 - **행운의 메시지**: 랜덤한 응원 메시지 제공
@@ -56,26 +57,28 @@ docker-compose --profile production up --build
 
 ## 🛠️ 기술 스택
 
-- **Backend**: Python Flask
+- **Backend**: Python Flask, Flask-Login (사용자 인증)
 - **Frontend**: HTML, CSS, JavaScript
 - **Container**: Docker, Docker Compose
 - **Web Server**: Nginx (프로덕션 환경)
 
 ## 📁 주요 파일 설명
 
-- `app.py`: Flask 웹 애플리케이션 메인 파일
-- `templates/index.html`: 웹 페이지 템플릿
-- `requirements.txt`: Python 패키지 의존성
+- `app.py`: Flask 웹 애플리케이션 메인 파일 (로그인/로그아웃/인증 포함)
+- `templates/index.html`: 메인 페이지 템플릿 (로그인 사용자 이름, 로그아웃 버튼 표시)
+- `templates/login.html`: 로그인 폼 템플릿
+- `requirements.txt`: Python 패키지 의존성 (Flask, Flask-Login 등)
 - `Dockerfile`: Docker 이미지 빌드 설정
 - `docker-compose.yml`: 서비스 구성 파일
 - `nginx.conf`: Nginx 설정 (프로덕션용)
 
 ## 🎯 사용법
 
-1. 웹 사이트에 접속
-2. "행운의 번호 생성하기" 버튼 클릭
-3. 생성된 6개의 메인 번호와 1개의 보너스 번호 확인
-4. 행운의 메시지와 함께 번호를 로또 구매 시 활용
+1. 웹 사이트에 접속하면 로그인 페이지가 나타납니다.
+2. 기본 계정으로 로그인 (아이디: testuser / 비밀번호: testpass)
+3. 로그인 후 "AI 빅데이터 분석 시작" 버튼을 클릭해 번호를 생성합니다.
+4. 생성된 6개의 메인 번호와 1개의 보너스 번호, 분석 정보, 행운의 메시지를 확인합니다.
+5. 우측 상단에서 로그아웃할 수 있습니다.
 
 ## 🔧 커스터마이징
 
