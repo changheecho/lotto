@@ -17,8 +17,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app.py .
 COPY templates/ templates/
 
-# 포트 5000 노출
-EXPOSE 5000
+# 포트 5001 노출
+EXPOSE 5001
 
 # 환경 변수 설정
 ENV FLASK_APP=app.py

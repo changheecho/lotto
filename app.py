@@ -1,5 +1,11 @@
 from flask import Flask, render_template, jsonify, request, redirect, url_for, flash, session
+
+# ...기존 코드...
+
+# 내가 선택한 로또 번호를 조회하는 API (app 인스턴스 생성 이후 위치)
+from flask import Flask, render_template, jsonify, request, redirect, url_for, flash, session
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
 import random
 import requests
 from datetime import datetime, timedelta
@@ -18,10 +24,71 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
+
 # 임시 사용자 저장소 (실제 서비스에서는 DB 사용)
+# 관리자(admin)는 평문, 일반 사용자는 암호화 저장
 USERS = {
-    'testuser': {'password': 'testpass'}
+    'admin': {'password': 'admin1234', 'is_admin': True}
 }
+
+# 회원가입
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        if username in USERS:
+            flash('이미 존재하는 아이디입니다.', 'danger')
+        else:
+            USERS[username] = {'password': generate_password_hash(password), 'is_admin': False}
+            flash('회원가입이 완료되었습니다. 로그인 해주세요.', 'success')
+            return redirect(url_for('login'))
+    return render_template('register.html')
+
+# 비밀번호 변경
+@app.route('/change-password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    if request.method == 'POST':
+        old_pw = request.form['old_password']
+        new_pw = request.form['new_password']
+        user = USERS.get(current_user.get_id())
+        if user:
+            if user.get('is_admin'):
+                if user['password'] == old_pw:
+                    user['password'] = new_pw
+                    flash('비밀번호가 변경되었습니다.', 'success')
+                    return redirect(url_for('index'))
+            else:
+                if check_password_hash(user['password'], old_pw):
+                    user['password'] = generate_password_hash(new_pw)
+                    flash('비밀번호가 변경되었습니다.', 'success')
+                    return redirect(url_for('index'))
+        flash('기존 비밀번호가 일치하지 않습니다.', 'danger')
+    return render_template('change_password.html')
+
+# 사용자 목록 및 삭제 (관리자용, 단순 출력)
+@app.route('/users', methods=['GET', 'POST'])
+@login_required
+def user_list():
+    # 관리자만 접근 가능
+    user = USERS.get(current_user.get_id())
+    if not user or not user.get('is_admin'):
+        flash('관리자만 접근할 수 있습니다.', 'danger')
+        return redirect(url_for('index'))
+    if request.method == 'POST':
+        del_user = request.form.get('delete_user')
+        if del_user == current_user.get_id():
+            flash('본인은 삭제할 수 없습니다.', 'danger')
+        elif del_user == 'admin':
+            flash('기본 관리자는 삭제할 수 없습니다.', 'danger')
+        elif del_user in USERS:
+            USERS.pop(del_user)
+            flash(f'{del_user} 계정이 삭제되었습니다.', 'success')
+        else:
+            flash('존재하지 않는 사용자입니다.', 'danger')
+    filtered_users = {k: v for k, v in USERS.items() if k != 'admin'}
+    return render_template('user_list.html', users=filtered_users)
 
 # User 모델
 class User(UserMixin):
@@ -315,7 +382,7 @@ def generate_smart_lotto_numbers():
         
         # 번호 범위 균형 맞추기 (1-15, 16-30, 31-45 구간별 균형)
         if not is_balanced(selected_numbers):
-            selected_numbers = balance_number_ranges(selected_numbers)
+            selected_numbers = balance_number_ranges(selected_numbers, all_numbers)
         
         main_numbers = sorted(selected_numbers)
         
@@ -346,13 +413,13 @@ def is_balanced(numbers):
     # 각 구간에 최소 1개씩은 있어야 함
     return low >= 1 and mid >= 1 and high >= 1
 
-def balance_number_ranges(numbers):
+def balance_number_ranges(numbers, all_numbers):
     """번호 범위 균형 맞추기"""
     # 구간별 분류
     low_nums = [n for n in numbers if 1 <= n <= 15]
     mid_nums = [n for n in numbers if 16 <= n <= 30]
     high_nums = [n for n in numbers if 31 <= n <= 45]
-    
+    number_frequency = Counter(all_numbers)
     # 부족한 구간 보충
     if not low_nums:
         # 다른 구간에서 하나 제거하고 low 구간 추가
@@ -420,12 +487,18 @@ def login():
         username = request.form['username']
         password = request.form['password']
         user = USERS.get(username)
-        if user and user['password'] == password:
-            login_user(User(username))
-            flash('로그인 성공!', 'success')
-            return redirect(url_for('index'))
-        else:
-            flash('아이디 또는 비밀번호가 올바르지 않습니다.', 'danger')
+        if user:
+            if user.get('is_admin'):
+                if user['password'] == password:
+                    login_user(User(username))
+                    flash('로그인 성공!', 'success')
+                    return redirect(url_for('index'))
+            else:
+                if check_password_hash(user['password'], password):
+                    login_user(User(username))
+                    flash('로그인 성공!', 'success')
+                    return redirect(url_for('index'))
+        flash('아이디 또는 비밀번호가 올바르지 않습니다.', 'danger')
     return render_template('login.html')
 
 # 로그아웃
@@ -476,5 +549,87 @@ def cache_status():
         'cache_file_size': os.path.getsize(CACHE_FILE) if os.path.exists(CACHE_FILE) else 0
     })
 
+# 1회부터 최신회차까지 로또 1등번호 조회 API/페이지
+@app.route('/lotto-winners')
+@login_required
+def lotto_winners():
+    latest = get_latest_round()
+    results = []
+    for rnd in range(1, latest + 1):
+        numbers, bonus, date = fetch_lotto_data(rnd)
+        if numbers:
+            # 날짜를 datetime 객체로 변환 (없으면 None)
+            try:
+                date_obj = datetime.strptime(date, '%Y-%m-%d')
+            except Exception:
+                date_obj = None
+            results.append({
+                'round': rnd,
+                'numbers': numbers,
+                'bonus': bonus,
+                'date': date,
+                'date_obj': date_obj
+            })
+    # 최신순 정렬
+    results = [r for r in results if r['date_obj']]
+    results.sort(key=lambda x: x['date_obj'], reverse=True)
+
+    # 최근 3개월(약 92일)치만 그룹핑 및 출력
+    groups = []
+    if results:
+        group = []
+        current = results[0]['date_obj']
+        for item in results:
+            # 3개월(약 92일) 이내만 포함
+            if (current - item['date_obj']).days > 92:
+                break
+            group.append(item)
+        if group:
+            groups.append(group)
+
+    return render_template('lotto_winners.html', groups=groups)
+
+# 내가 선택한 로또 번호를 조회하는 API (app 인스턴스 생성 이후 위치)
+@app.route('/check-my-lotto', methods=['POST'])
+@login_required
+def check_my_lotto():
+    try:
+        data = request.get_json()
+        numbers = data.get('numbers', [])
+        round_number = data.get('round')
+        if not isinstance(numbers, list) or len(numbers) != 6 or len(set(numbers)) != 6 or any(type(n) != int or n < 1 or n > 45 for n in numbers):
+            return jsonify({'success': False, 'error': '1~45 사이의 중복 없는 6개 숫자를 입력하세요.'})
+        if round_number is not None:
+            try:
+                round_number = int(round_number)
+            except Exception:
+                return jsonify({'success': False, 'error': '회차 정보가 올바르지 않습니다.'})
+        else:
+            round_number = get_latest_round()
+        win_numbers, bonus, date = fetch_lotto_data(round_number)
+        if not win_numbers:
+            return jsonify({'success': False, 'error': f'{round_number}회차 정보를 불러올 수 없습니다.'})
+        matched = len(set(numbers) & set(win_numbers))
+        rank = 0
+        rank_text = '낙첨'
+        if matched == 6:
+            rank = 1
+            rank_text = '🎉 1등 당첨!'
+        elif matched == 5 and bonus in numbers:
+            rank = 2
+            rank_text = '2등 (보너스번호 포함)'
+        elif matched == 5:
+            rank = 3
+            rank_text = '3등'
+        elif matched == 4:
+            rank = 4
+            rank_text = '4등'
+        elif matched == 3:
+            rank = 5
+            rank_text = '5등'
+        return jsonify({'success': True, 'rank': rank, 'rank_text': rank_text, 'round': round_number, 'date': date, 'win_numbers': win_numbers, 'bonus': bonus})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5001, debug=True)

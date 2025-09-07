@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>사용자 목록</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; font-family: 'Arial', sans-serif; }
+        .userlist-container { background: white; padding: 40px 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); width: 350px; text-align: center; }
+        h2 { margin-bottom: 20px; color: #2c3e50; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ddd; padding: 8px; }
+        th { background: #f1f1f1; }
+        .flash { padding: 10px; margin-bottom: 10px; border-radius: 5px; }
+        .flash-success { background-color: #d4edda; color: #155724; }
+        .flash-error { background-color: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="userlist-container">
+        <h2>사용자 목록</h2>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="flash flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+        <form method="post">
+        <table>
+            <tr><th>아이디</th><th>관리</th></tr>
+            {% for username, info in users.items() %}
+            <tr>
+                <td>{{ username }}</td>
+                <td>
+                  {% if username != current_user.get_id() %}
+                    <button type="submit" name="delete_user" value="{{ username }}" style="color:#e74c3c; background:none; border:none; cursor:pointer; font-weight:bold;">삭제</button>
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+        </form>
+        <div style="margin-top:15px;">
+            <a href="/">메인으로 돌아가기</a>
+        </div>
+    </div>
+</body>
+</html>

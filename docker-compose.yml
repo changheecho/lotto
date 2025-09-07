@@ -4,7 +4,7 @@ services:
   lotto-app:
     build: .
     ports:
-      - "5000:5000"
+      - "5001:5001"
     environment:
       - FLASK_ENV=production
     restart: unless-stopped
