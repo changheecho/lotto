@@ -271,25 +271,30 @@
 
         
         async function generateAICollaborative() {
+            console.log('AI 협업 버튼 클릭됨');
+            
             const aiLoadingEl = document.getElementById('aiCollaborativeLoading');
             const resultEl = document.getElementById('result');
             const btn = document.getElementById('generateAIBtn');
-            const normalLoadingEl = document.getElementById('loading');
+            
+            console.log('요소들 확인:', {aiLoadingEl, resultEl, btn});
             
             // 로딩 시작
             btn.disabled = true;
-            document.getElementById('generateBtn').disabled = true;
             btn.textContent = '🤖 AI 협업 중...';
-            aiLoadingEl.style.display = 'block';
-            normalLoadingEl.style.display = 'none';
-            resultEl.classList.remove('show');
+            if (aiLoadingEl) aiLoadingEl.style.display = 'block';
+            if (resultEl) resultEl.classList.remove('show');
             
             try {
+                console.log('진행 단계 시뮬레이션 시작');
                 // 진행 단계 시뮬레이션
                 await simulateAIProgress();
                 
+                console.log('API 호출 시작');
                 const response = await fetch('/generate-ai-collaborative');
+                console.log('응답 수신:', response.status);
                 const data = await response.json();
+                console.log('데이터 파싱 완료:', data);
                 
                 // 오류 응답 처리
                 if (data.success === false) {
@@ -300,7 +305,7 @@
                 displayAICollaborativeResult(data);
                 
             } catch (error) {
-                console.error('Error:', error);
+                console.error('AI 협업 중 오류 발생:', error);
                 
                 // 구체적인 오류 메시지 표시
                 let errorMessage = error.message;
@@ -314,11 +319,11 @@
                     alert('AI 협업 분석 중 오류가 발생했습니다:\n' + errorMessage);
                 }
             } finally {
+                console.log('AI 협업 함수 종료, 로딩 정리');
                 // 로딩 종료
-                aiLoadingEl.style.display = 'none';
+                if (aiLoadingEl) aiLoadingEl.style.display = 'none';
                 btn.disabled = false;
-                document.getElementById('generateBtn').disabled = false;
-                btn.textContent = '🤖 AI 협업 분석';
+                btn.textContent = '🤖 AI 협업 번호 생성';
             }
         }
         
