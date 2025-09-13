@@ -1,0 +1,10 @@
+{
+  "admin": {
+    "password": "admin1234",
+    "is_admin": true
+  },
+  "changhee": {
+    "password": "pbkdf2:sha256:600000$IqHW8Zto8dUkkbea$ef420989346709a2b24555a380416bb751935cd172b3d0bb2ae5cf4db17a9863",
+    "is_admin": false
+  }
+}

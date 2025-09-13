@@ -217,6 +217,7 @@
     <div class="container">
         <div style="text-align:right; margin-bottom:10px;">
             <span style="font-size:0.95em; color:#555;">👤 {{ username }}님 환영합니다!</span>
+            <a href="/api-settings" style="margin-left:15px; color:#e67e22; text-decoration:none; font-weight:bold;">🔑 API 설정</a>
             <a href="/change-password" style="margin-left:15px; color:#2980b9; text-decoration:none; font-weight:bold;">비밀번호 변경</a>
             {% if username %}
             {% endif %}
@@ -225,33 +226,39 @@
             {% endif %}
             <a href="/logout" style="margin-left:15px; color:#e74c3c; text-decoration:none; font-weight:bold;">로그아웃</a>
         </div>
-        <h1>🎰 AI 로또 번호 분석</h1>
-        <p class="subtitle">1회차부터 최신회차까지 빅데이터 분석으로 차세대 로또 번호를 생성합니다!</p>
-        <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 30px;">
+        <h1>🎰 로또 번호 생성 시스템</h1>
+        <p class="subtitle">랜덤 생성 또는 AI 협업을 통한 로또 번호를 제공합니다!</p>
+        <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 30px; flex-wrap: wrap;">
             <button class="generate-btn" onclick="generateNumbers()" id="generateBtn" style="min-width:120px; white-space:nowrap; font-size:1em;">
-                로또 번호 생성
+                랜덤 번호 생성
             </button>
-            <!-- 내 번호 당첨조회 버튼 제거 -->
-            <button class="generate-btn" id="myLottoListBtn" style="background: linear-gradient(45deg, #2980b9, #6dd5fa); min-width:120px; white-space:nowrap; font-size:1em;">
+            <button class="generate-btn" onclick="generateAICollaborative()" id="generateAIBtn" style="background: linear-gradient(45deg, #e74c3c, #c0392b); min-width:120px; white-space:nowrap; font-size:1em;">
+                🤖 AI 협업 분석
+            </button>
+            <a href="/my-lotto" class="generate-btn" style="background: linear-gradient(45deg, #2980b9, #6dd5fa); min-width:120px; white-space:nowrap; font-size:1em;">
                 내 번호 목록
-            </button>
+            </a>
             <a href="/lotto-winners" class="generate-btn" style="background: linear-gradient(45deg, #8e44ad, #6c3483); min-width:120px; white-space:nowrap; display:flex; align-items:center; justify-content:center; font-size:1em;">
                 로또 1등번호 조회
             </a>
         </div>
-    <!-- 내 번호 목록 모달 -->
-    <div id="myLottoListModal" style="display:none; position:fixed; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
-        <div style="background:white; padding:30px 25px 20px 25px; border-radius:16px; min-width:320px; max-width:90vw; box-shadow:0 8px 32px rgba(0,0,0,0.18); position:relative;">
-            <h2 style="margin-bottom:18px; color:#2980b9; text-align:center;">내가 선택한 로또 번호</h2>
-            <div id="myLottoListContent" style="min-height:40px; margin-bottom:10px;"></div>
-            <button type="button" id="closeMyLottoListModal" style="background:none; border:none; color:#888; margin-top:2px; cursor:pointer;">닫기</button>
-        </div>
-    </div>
     <!-- 내 번호 당첨조회 기능 제거 -->
         <div class="loading" id="loading">
             <div class="spinner"></div>
-            AI가 역대 로또 데이터를 분석하고 있습니다...<br>
-            <small>1회차부터 최신회차까지 패턴 분석 중</small>
+            랜덤 번호를 생성하고 있습니다...<br>
+            <small>잠시만 기다려주세요</small>
+        </div>
+        
+        <div class="loading" id="aiCollaborativeLoading" style="display:none;">
+            <div class="spinner"></div>
+            <div id="aiProgressText">🤖 AI 협업 분석을 시작합니다...</div>
+            <div id="aiProgressSteps" style="margin-top: 15px; font-size: 0.9em; color: #666;">
+                <div id="step1" style="margin: 5px 0;">⏳ GPT에게 로또 번호 요청 중...</div>
+                <div id="step2" style="margin: 5px 0; opacity: 0.5;">⏳ Claude에게 로또 번호 요청 중...</div>
+                <div id="step3" style="margin: 5px 0; opacity: 0.5;">⏳ Gemini에게 로또 번호 요청 중...</div>
+                <div id="step4" style="margin: 5px 0; opacity: 0.5;">⏳ 중복 번호 제거 및 후보 선정 중...</div>
+                <div id="step5" style="margin: 5px 0; opacity: 0.5;">⏳ Claude에게 최종 선택 요청 중...</div>
+            </div>
         </div>
         <div class="result" id="result">
             <div class="message" id="message"></div>
@@ -276,7 +283,7 @@
         async function generateNumbers() {
             const loadingEl = document.getElementById('loading');
             const resultEl = document.getElementById('result');
-            const btn = document.querySelector('.generate-btn');
+            const btn = document.getElementById('generateBtn');
             
             // 로딩 시작
             btn.disabled = true;
@@ -301,7 +308,82 @@
                 // 로딩 종료
                 loadingEl.style.display = 'none';
                 btn.disabled = false;
-                btn.textContent = '🎲 로또 번호 생성';
+                btn.textContent = '랜덤 번호 생성';
+            }
+        }
+        
+        async function generateAICollaborative() {
+            const aiLoadingEl = document.getElementById('aiCollaborativeLoading');
+            const resultEl = document.getElementById('result');
+            const btn = document.getElementById('generateAIBtn');
+            const normalLoadingEl = document.getElementById('loading');
+            
+            // 로딩 시작
+            btn.disabled = true;
+            document.getElementById('generateBtn').disabled = true;
+            btn.textContent = '🤖 AI 협업 중...';
+            aiLoadingEl.style.display = 'block';
+            normalLoadingEl.style.display = 'none';
+            resultEl.classList.remove('show');
+            
+            try {
+                // 진행 단계 시뮬레이션
+                await simulateAIProgress();
+                
+                const response = await fetch('/generate-ai-collaborative');
+                const data = await response.json();
+                
+                // 오류 응답 처리
+                if (data.success === false) {
+                    throw new Error(data.error || 'AI 협업 분석에 실패했습니다.');
+                }
+                
+                // 결과 표시 (AI 협업 정보 포함)
+                displayAICollaborativeResult(data);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                
+                // 구체적인 오류 메시지 표시
+                let errorMessage = error.message;
+                if (errorMessage.includes('API 키가 설정되지 않았습니다')) {
+                    errorMessage += '\n\n🔑 API 설정 페이지에서 AI API 키를 먼저 설정해주세요.';
+                    if (confirm(errorMessage + '\n\nAPI 설정 페이지로 이동하시겠습니까?')) {
+                        window.location.href = '/api-settings';
+                        return;
+                    }
+                } else {
+                    alert('AI 협업 분석 중 오류가 발생했습니다:\n' + errorMessage);
+                }
+            } finally {
+                // 로딩 종료
+                aiLoadingEl.style.display = 'none';
+                btn.disabled = false;
+                document.getElementById('generateBtn').disabled = false;
+                btn.textContent = '🤖 AI 협업 분석';
+            }
+        }
+        
+        async function simulateAIProgress() {
+            const steps = ['step1', 'step2', 'step3', 'step4', 'step5'];
+            const messages = [
+                '🤖 GPT 분석 완료!',
+                '🧠 Claude 분석 완료!', 
+                '💎 Gemini 분석 완료!',
+                '🔍 중복 제거 및 후보 선정 완료!',
+                '🎯 최종 번호 선정 완료!'
+            ];
+            
+            for (let i = 0; i < steps.length; i++) {
+                await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 2000));
+                const stepEl = document.getElementById(steps[i]);
+                stepEl.style.opacity = '1';
+                stepEl.style.color = '#27ae60';
+                stepEl.innerHTML = '✅ ' + messages[i];
+                
+                if (i < steps.length - 1) {
+                    document.getElementById(steps[i + 1]).style.opacity = '1';
+                }
             }
         }
         
@@ -351,60 +433,72 @@
             });
             resultEl.classList.add('show');
         }
-        // 내 번호 목록 모달 열기/닫기 및 당첨결과 조회
-        document.getElementById('myLottoListBtn').onclick = async function() {
-            const modal = document.getElementById('myLottoListModal');
-            const content = document.getElementById('myLottoListContent');
-            let myLottoList = JSON.parse(localStorage.getItem('myLottoList')||'[]');
-            if(!myLottoList.length) {
-                content.innerHTML = '<span style="color:#888;">저장된 번호가 없습니다.</span>';
-                modal.style.display = 'flex';
-                return;
+        
+        function displayAICollaborativeResult(data) {
+            const numbersEl = document.getElementById('numbers');
+            const resultEl = document.getElementById('result');
+            const messageEl = document.getElementById('message');
+            const analysisInfoEl = document.getElementById('analysisInfo');
+            
+            // AI 협업 과정 정보 표시
+            messageEl.style.display = 'block';
+            messageEl.textContent = data.message;
+            
+            // 분석 정보 표시
+            if (data.process_info) {
+                analysisInfoEl.style.display = 'block';
+                const info = data.process_info;
+                analysisInfoEl.innerHTML = `
+                    🤖 GPT: ${info.gpt_count}개 | 🧠 Claude: ${info.claude_count}개 | 💎 Gemini: ${info.gemini_count}개<br>
+                    총 ${info.total_suggestions}개 제안 → ${info.unique_after_dedup}개 후보 → 최종 3개 선정<br>
+                    <small>선택 이유: ${info.selection_reason}</small>
+                `;
+            } else {
+                analysisInfoEl.style.display = 'none';
             }
-            content.innerHTML = '조회 중...';
-            modal.style.display = 'flex';
-            // 리스트 형태로 각 번호, 선택일, 추첨일, 결과 표시 + 삭제 버튼
-            let html = '<ul style="list-style:none;padding:0;margin:0;">';
-            const today = new Date();
-            for(let idx=0; idx<myLottoList.length; idx++) {
-                const item = myLottoList[idx];
-                let nums = item.nums || item;
-                let savedAt = item.savedAt || null;
-                let selDate = savedAt ? new Date(savedAt) : today;
-                let day = selDate.getDay();
-                let diff = 6 - day;
-                let drawDate = new Date(selDate);
-                drawDate.setDate(selDate.getDate() + diff);
-                let drawDateStr = drawDate.toISOString().slice(0,10);
-                    let deleteBtn = `<button onclick="deleteMyLotto(${idx})" style='margin-left:8px; color:#e74c3c; background:none; border:1px solid #e74c3c; border-radius:4px; padding:6px 18px; min-width:60px; cursor:pointer; font-size:1em;'>삭제</button>`;
-                if(drawDate > today) {
-                    html += `<li style='margin-bottom:12px; padding:8px 0; border-bottom:1px solid #eee;'>
-                        <b>[${nums.join(', ')}]</b>${deleteBtn}<br>
-                        <span style='font-size:0.92em;'>선택일: ${selDate.toISOString().slice(0,10)}<br>추첨일: ${drawDateStr} <span style='color:#888;'>(미추첨)</span></span>
-                    </li>`;
-                } else {
-                    let firstDraw = new Date('2002-12-07');
-                    let diffWeeks = Math.floor((drawDate - firstDraw) / (7*24*60*60*1000));
-                    let round = 1 + diffWeeks;
-                    let res = await fetch('/check-my-lotto', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ numbers: nums, round: round })
+            
+            // 보너스 번호 영역 숨김
+            document.getElementById('bonus').style.display = 'none';
+            var bonusLabel = document.querySelector('.bonus-label');
+            if (bonusLabel) bonusLabel.style.display = 'none';
+            document.getElementById('timestamp').style.display = 'none';
+            
+            // 메인 번호만 표시
+            numbersEl.innerHTML = '';
+            data.main_numbers.forEach(num => {
+                const numberDiv = document.createElement('div');
+                numberDiv.className = 'number';
+                numberDiv.textContent = num;
+                numbersEl.appendChild(numberDiv);
+            });
+            
+            // '내 번호로 선택' 버튼 처리
+            let oldBtn = document.getElementById('selectMyLottoBtn');
+            if (oldBtn) oldBtn.style.display = '';
+            else {
+                const selectBtn = document.createElement('button');
+                selectBtn.textContent = '내 번호로 선택';
+                selectBtn.className = 'generate-btn';
+                selectBtn.id = 'selectMyLottoBtn';
+                selectBtn.style = 'background:linear-gradient(45deg,#2980b9,#6dd5fa);font-size:1em;padding:8px 0;margin:20px auto 0 auto;width:100%;max-width:300px;display:block;';
+                selectBtn.onclick = function() {
+                    let myLottoList = JSON.parse(localStorage.getItem('myLottoList')||'[]');
+                    if(myLottoList.find(item=>(item.nums||item).join(',')===data.main_numbers.join(','))) {
+                        alert('이미 저장된 번호입니다!');
+                        return;
+                    }
+                    myLottoList.push({
+                        nums: data.main_numbers,
+                        savedAt: new Date().toISOString().slice(0,10)
                     });
-                    let data = await res.json();
-                    html += `<li style='margin-bottom:12px; padding:8px 0; border-bottom:1px solid #eee;'>
-                        <b>[${nums.join(', ')}]</b>${deleteBtn}<br>
-                        <span style='font-size:0.92em;'>선택일: ${selDate.toISOString().slice(0,10)}<br>추첨일: ${drawDateStr} (${round}회차)</span><br>
-                        <span style="font-size:0.95em;">${data.success ? `1등번호: <span style='color:#e67e22;'>${data.win_numbers.join(', ')}</span> 보너스: <span style='color:#2980b9;'>${data.bonus}</span><br><span style='font-weight:bold; color:${data.rank==1?'#e74c3c':data.rank==2?'#2980b9':'#16a085'};'>${data.rank_text}</span>` : `<span style='color:red;'>조회 실패: ${data.error}</span>`}</span>
-                    </li>`;
-                }
+                    localStorage.setItem('myLottoList', JSON.stringify(myLottoList));
+                    alert('내 번호 목록에 저장되었습니다!');
+                };
+                resultEl.appendChild(selectBtn);
             }
-            html += '</ul>';
-            content.innerHTML = html;
-        };
-        document.getElementById('closeMyLottoListModal').onclick = function() {
-            document.getElementById('myLottoListModal').style.display = 'none';
-        };
+            
+            resultEl.classList.add('show');
+        }
         
         // 페이지 로드 시 첫 번호 자동 생성
         window.addEventListener('load', function() {

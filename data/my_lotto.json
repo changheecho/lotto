@@ -1,0 +1,127 @@
+{
+  "admin": [
+    {
+      "numbers": [
+        8,
+        12,
+        16,
+        20,
+        30,
+        36
+      ],
+      "bonus": 45,
+      "type": "생성된 번호",
+      "analysis_type": "AI 분석",
+      "confidence_score": 86,
+      "generated_at": "2025-09-13 11:40:58"
+    },
+    {
+      "numbers": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "type": "조회된 번호",
+      "round": 1100,
+      "checked_at": "2025-09-13 11:41:32",
+      "result": "낙첨",
+      "rank": 0
+    },
+    {
+      "numbers": [
+        6,
+        10,
+        14,
+        20,
+        28,
+        39
+      ],
+      "bonus": 27,
+      "type": "생성된 번호",
+      "analysis_type": "AI 협업",
+      "confidence_score": 85,
+      "generated_at": "2025-09-13 11:47:57",
+      "process_info": {
+        "gpt_count": 5,
+        "claude_count": 5,
+        "gemini_count": 5,
+        "total_suggestions": 15,
+        "unique_after_dedup": 15,
+        "final_candidates": [
+          [
+            6,
+            10,
+            14,
+            20,
+            28,
+            39
+          ],
+          [
+            5,
+            11,
+            17,
+            18,
+            20,
+            37
+          ],
+          [
+            2,
+            7,
+            16,
+            20,
+            22,
+            33
+          ]
+        ],
+        "selected_index": 0,
+        "selection_reason": "랜덤 선택"
+      }
+    },
+    {
+      "numbers": [
+        3,
+        4,
+        6,
+        12,
+        19,
+        30
+      ],
+      "bonus": 11,
+      "type": "생성된 번호",
+      "analysis_type": "랜덤",
+      "generated_at": "2025-09-13 11:58:31"
+    },
+    {
+      "numbers": [
+        1,
+        2,
+        19,
+        39,
+        42,
+        44
+      ],
+      "bonus": 11,
+      "type": "생성된 번호",
+      "analysis_type": "랜덤",
+      "generated_at": "2025-09-13 11:59:04"
+    },
+    {
+      "numbers": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "type": "조회된 번호",
+      "round": 1100,
+      "checked_at": "2025-09-13 11:59:16",
+      "result": "낙첨",
+      "rank": 0
+    }
+  ]
+}

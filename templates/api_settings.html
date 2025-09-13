@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI API 키 설정</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .api-key-input {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        .api-info {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .api-provider {
+            border-left: 4px solid #007bff;
+            padding-left: 15px;
+            margin-bottom: 25px;
+        }
+        .api-provider.openai { border-left-color: #00a67e; }
+        .api-provider.anthropic { border-left-color: #d97706; }
+        .api-provider.google { border-left-color: #4285f4; }
+        .step-indicator {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-md-10 col-lg-8">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2>🔑 AI API 키 설정</h2>
+                    <div>
+                        <a href="{{ url_for('index') }}" class="btn btn-primary">홈으로</a>
+                        <a href="{{ url_for('logout') }}" class="btn btn-outline-secondary">로그아웃</a>
+                    </div>
+                </div>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <div class="api-info">
+                    <h5>🤖 AI 협업 기능을 사용하려면 API 키가 필요합니다</h5>
+                    <p class="mb-0">
+                        GPT, Claude, Gemini와 협업하여 로또 번호를 생성하려면 각 AI 서비스의 API 키를 설정해야 합니다.
+                        모든 키를 설정할 필요는 없으며, 설정된 AI만 협업에 참여합니다.
+                    </p>
+                </div>
+
+                <form method="POST">
+                    <!-- OpenAI GPT -->
+                    <div class="api-provider openai">
+                        <h4><span class="step-indicator">1</span>🤖 OpenAI (GPT-4)</h4>
+                        <div class="mb-3">
+                            <label for="openai_key" class="form-label">API 키</label>
+                            <input type="password" class="form-control api-key-input" id="openai_key" name="openai_key" 
+                                   placeholder="sk-..." value="{{ api_keys.openai if api_keys.openai else '' }}">
+                            <div class="form-text">
+                                OpenAI API 키는 <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI Platform</a>에서 발급받을 수 있습니다.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Anthropic Claude -->
+                    <div class="api-provider anthropic">
+                        <h4><span class="step-indicator">2</span>🧠 Anthropic (Claude)</h4>
+                        <div class="mb-3">
+                            <label for="anthropic_key" class="form-label">API 키</label>
+                            <input type="password" class="form-control api-key-input" id="anthropic_key" name="anthropic_key" 
+                                   placeholder="sk-ant-..." value="{{ api_keys.anthropic if api_keys.anthropic else '' }}">
+                            <div class="form-text">
+                                Anthropic API 키는 <a href="https://console.anthropic.com/" target="_blank">Anthropic Console</a>에서 발급받을 수 있습니다.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Google Gemini -->
+                    <div class="api-provider google">
+                        <h4><span class="step-indicator">3</span>💎 Google (Gemini)</h4>
+                        <div class="mb-3">
+                            <label for="google_key" class="form-label">API 키</label>
+                            <input type="password" class="form-control api-key-input" id="google_key" name="google_key" 
+                                   placeholder="AIza..." value="{{ api_keys.google if api_keys.google else '' }}">
+                            <div class="form-text">
+                                Google API 키는 <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a>에서 발급받을 수 있습니다.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="button" class="btn btn-secondary me-md-2" onclick="clearAllKeys()">모두 지우기</button>
+                        <button type="submit" class="btn btn-primary">저장하기</button>
+                    </div>
+                </form>
+
+                <div class="mt-4 p-3 bg-light rounded">
+                    <h6>🔒 보안 정보</h6>
+                    <ul class="mb-0">
+                        <li>API 키는 암호화되어 안전하게 저장됩니다.</li>
+                        <li>API 키는 로또 번호 생성 용도로만 사용됩니다.</li>
+                        <li>언제든지 설정을 변경하거나 삭제할 수 있습니다.</li>
+                        <li>AI 협업 기능을 사용하지 않으면 기본 분석 방식이 사용됩니다.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function clearAllKeys() {
+            if (confirm('모든 API 키를 지우시겠습니까?')) {
+                document.getElementById('openai_key').value = '';
+                document.getElementById('anthropic_key').value = '';
+                document.getElementById('google_key').value = '';
+            }
+        }
+
+        // 비밀번호 표시/숨기기 토글
+        document.querySelectorAll('.api-key-input').forEach(input => {
+            const toggleBtn = document.createElement('button');
+            toggleBtn.type = 'button';
+            toggleBtn.className = 'btn btn-outline-secondary btn-sm position-absolute';
+            toggleBtn.style.right = '10px';
+            toggleBtn.style.top = '50%';
+            toggleBtn.style.transform = 'translateY(-50%)';
+            toggleBtn.innerHTML = '👁️';
+            toggleBtn.onclick = function() {
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    toggleBtn.innerHTML = '🙈';
+                } else {
+                    input.type = 'password';
+                    toggleBtn.innerHTML = '👁️';
+                }
+            };
+            
+            input.parentElement.style.position = 'relative';
+            input.style.paddingRight = '50px';
+            input.parentElement.appendChild(toggleBtn);
+        });
+    </script>
+</body>
+</html>
