@@ -411,9 +411,16 @@
             if (data.process_info) {
                 analysisInfoEl.style.display = 'block';
                 const info = data.process_info;
+                
+                let exclusionInfo = '';
+                if (info.excluded_by_winners > 0) {
+                    exclusionInfo = `<br>🚫 기존 1등 당첨번호 ${info.excluded_by_winners}개 제외됨`;
+                }
+                
                 analysisInfoEl.innerHTML = `
                     🤖 GPT: ${info.gpt_count}개 | 🧠 Claude: ${info.claude_count}개 | 💎 Gemini: ${info.gemini_count}개<br>
-                    총 ${info.total_suggestions}개 제안 → ${info.unique_after_dedup}개 후보 → 최종 3개 선정<br>
+                    총 ${info.total_suggestions}개 제안 → ${info.filtered_by_winners || info.total_suggestions}개 필터링${exclusionInfo}<br>
+                    ${info.unique_after_dedup}개 고유 후보 → 최종 3개 선정<br>
                     <small>선택 이유: ${info.selection_reason}</small>
                 `;
             } else {

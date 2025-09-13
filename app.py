@@ -454,6 +454,43 @@ def get_latest_round():
     
     return max(1, estimated_round)
 
+def get_all_winning_combinations():
+    """모든 기존 1등 당첨번호 조합을 가져오기"""
+    winning_combinations = set()
+    latest_round = get_latest_round()
+    
+    print(f"기존 당첨번호 조회 중... (1회차 ~ {latest_round}회차)")
+    
+    # 최근 100회차만 조회 (API 부하 고려)
+    start_round = max(1, latest_round - 99)
+    
+    for round_num in range(start_round, latest_round + 1):
+        numbers, bonus, date = fetch_lotto_data(round_num)
+        if numbers:
+            # 메인 번호 6개를 튜플로 변환하여 set에 추가
+            combination = tuple(sorted(numbers))
+            winning_combinations.add(combination)
+            if round_num % 10 == 0:  # 10회차마다 진행상황 출력
+                print(f"{round_num}회차까지 조회 완료...")
+    
+    print(f"총 {len(winning_combinations)}개의 기존 당첨번호 조합 수집 완료")
+    return winning_combinations
+
+def filter_ai_suggestions_against_winners(ai_suggestions):
+    """AI 제안 번호에서 기존 당첨번호와 중복되는 것들을 제거"""
+    winning_combinations = get_all_winning_combinations()
+    filtered_suggestions = []
+    
+    for suggestion in ai_suggestions:
+        combination = tuple(sorted(suggestion))
+        if combination not in winning_combinations:
+            filtered_suggestions.append(suggestion)
+        else:
+            print(f"기존 당첨번호와 중복되어 제외: {suggestion}")
+    
+    print(f"AI 제안 {len(ai_suggestions)}개 → 필터링 후 {len(filtered_suggestions)}개")
+    return filtered_suggestions
+
 
 def generate_fallback_numbers():
     """API 실패 시 대체 번호 생성"""
@@ -516,31 +553,44 @@ async def generate_ai_collaborative_lotto_numbers(user_id):
             all_ai_numbers.append(sorted(combo))
             ai_sources.append(f"Gemini-{i+1}")
     
-    # 중복 제거 (AI 간 중복만 제거)
-    print("🔍 중복 번호 제거 중...")
+    # 기존 당첨번호와 중복 제거
+    print("🔍 기존 1등 당첨번호와 중복 제거 중...")
+    filtered_by_winners = filter_ai_suggestions_against_winners(all_ai_numbers)
+    
+    # AI 간 중복 제거
+    print("🔍 AI 간 중복 번호 제거 중...")
     unique_combinations = []
     seen_combinations = set()
     
-    for combo in all_ai_numbers:
+    for combo in filtered_by_winners:
         combo_tuple = tuple(sorted(combo))
         if combo_tuple not in seen_combinations:
             unique_combinations.append(combo)
             seen_combinations.add(combo_tuple)
     
-    # 3개 선정 (부족하면 AI 추천 번호로 보충)
+    # 3개 선정 (부족하면 기존 당첨번호를 피해서 새로 생성)
     final_candidates = unique_combinations[:3]
+    winning_combinations = get_all_winning_combinations() if len(final_candidates) < 3 else set()
+    
     while len(final_candidates) < 3:
-        if all_ai_numbers:
-            # AI 추천 번호 중에서 추가
-            for combo in all_ai_numbers:
-                if combo not in final_candidates:
-                    final_candidates.append(combo)
-                    break
-        if len(final_candidates) < 3:
-            # 그래도 부족하면 랜덤 생성
+        # 기존 당첨번호와 중복되지 않는 랜덤 번호 생성
+        max_attempts = 100  # 무한루프 방지
+        for attempt in range(max_attempts):
             random_combo = sorted(random.sample(range(1, 46), 6))
-            if random_combo not in final_candidates:
+            combo_tuple = tuple(random_combo)
+            
+            # 기존 당첨번호 및 이미 선정된 번호와 중복 확인
+            if (combo_tuple not in winning_combinations and 
+                random_combo not in final_candidates):
                 final_candidates.append(random_combo)
+                print(f"대체 번호 생성: {random_combo}")
+                break
+        else:
+            # 최대 시도 횟수 초과 시 기본 랜덤 번호 추가
+            print("⚠️ 대체 번호 생성 실패, 기본 랜덤 번호 사용")
+            random_combo = sorted(random.sample(range(1, 46), 6))
+            final_candidates.append(random_combo)
+            break
     
     # 최종 선택
     selected_index = 0
@@ -569,6 +619,8 @@ async def generate_ai_collaborative_lotto_numbers(user_id):
         'claude_count': len([s for s in ai_sources if s.startswith('Claude')]),
         'gemini_count': len([s for s in ai_sources if s.startswith('Gemini')]),
         'total_suggestions': len(all_ai_numbers),
+        'filtered_by_winners': len(filtered_by_winners),
+        'excluded_by_winners': len(all_ai_numbers) - len(filtered_by_winners),
         'unique_after_dedup': len(unique_combinations),
         'final_candidates': final_candidates,
         'selected_index': selected_index,
