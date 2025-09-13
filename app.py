@@ -26,7 +26,7 @@ GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY', 'your-google-api-key-here')
 try:
     anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     genai.configure(api_key=GOOGLE_API_KEY)
-    gemini_model = genai.GenerativeModel('gemini-pro')
+    gemini_model = genai.GenerativeModel('gemini-1.5-flash')
     print("AI API 클라이언트 초기화 완료")
 except Exception as e:
     print(f"AI API 초기화 실패: {e}")
@@ -324,7 +324,7 @@ async def ask_gemini_for_lotto_numbers(user_id):
             raise Exception("Google API 키가 설정되지 않았습니다.")
         
         genai.configure(api_key=google_key)
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         prompt = "로또 번호 분석 전문가로서, 이번 주 당첨 가능성이 높은 로또 번호 조합 5개를 추천해주세요. 각 조합은 1~45 사이의 중복 없는 6개 숫자로 구성되어야 합니다. JSON 형식으로 응답해주세요: {\"combinations\": [[1,2,3,4,5,6], ...]}"
         
@@ -454,12 +454,6 @@ def get_latest_round():
     
     return max(1, estimated_round)
 
-def generate_simple_random_numbers():
-    """간단한 랜덤 로또 번호 생성"""
-    main_numbers = sorted(random.sample(range(1, 46), 6))
-    remaining_numbers = [i for i in range(1, 46) if i not in main_numbers]
-    bonus_number = random.choice(remaining_numbers)
-    return main_numbers, bonus_number, "랜덤"
 
 def generate_fallback_numbers():
     """API 실패 시 대체 번호 생성"""
@@ -621,37 +615,6 @@ def logout():
 def index():
     return render_template('index.html', username=current_user.get_id())
 
-@app.route('/generate')
-@login_required
-def generate():
-    main_numbers, bonus_number, analysis_type = generate_simple_random_numbers()
-    
-    # 간단한 메시지
-    lucky_message = "🎲 순수한 행운에 맡긴 랜덤 번호입니다!"
-    
-    # 생성된 번호를 자동으로 저장
-    user_id = current_user.get_id()
-    if user_id:
-        if user_id not in MY_LOTTO:
-            MY_LOTTO[user_id] = []
-        
-        # 생성된 번호 저장
-        MY_LOTTO[user_id].append({
-            'numbers': main_numbers,
-            'bonus': bonus_number,
-            'type': '생성된 번호',
-            'analysis_type': analysis_type,
-            'generated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        })
-        save_my_lotto(MY_LOTTO)
-    
-    return jsonify({
-        'main_numbers': main_numbers,
-        'bonus_number': bonus_number,
-        'message': lucky_message,
-        'analysis_type': analysis_type,
-        'generated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    })
 
 @app.route('/generate-ai-collaborative')
 @login_required
@@ -734,28 +697,6 @@ def generate_ai_collaborative():
         }), 400
 
 
-# 최근 로또 당첨번호 조회 페이지 (최근 10회차만)
-@app.route('/lotto-winners')
-@login_required
-def lotto_winners():
-    latest = get_latest_round()
-    results = []
-    
-    # 최근 10회차만 조회
-    for rnd in range(max(1, latest - 9), latest + 1):
-        numbers, bonus, date = fetch_lotto_data(rnd)
-        if numbers:
-            results.append({
-                'round': rnd,
-                'numbers': numbers,
-                'bonus': bonus,
-                'date': date
-            })
-    
-    # 최신순으로 정렬
-    results.reverse()
-    
-    return render_template('lotto_winners.html', winners=results)
 
 # 내가 선택한 로또 번호를 조회하는 API (app 인스턴스 생성 이후 위치)
 @app.route('/check-my-lotto', methods=['POST'])

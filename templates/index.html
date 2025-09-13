@@ -226,28 +226,17 @@
             {% endif %}
             <a href="/logout" style="margin-left:15px; color:#e74c3c; text-decoration:none; font-weight:bold;">로그아웃</a>
         </div>
-        <h1>🎰 로또 번호 생성 시스템</h1>
-        <p class="subtitle">랜덤 생성 또는 AI 협업을 통한 로또 번호를 제공합니다!</p>
+        <h1>🤖 AI 협업 로또 번호 생성</h1>
+        <p class="subtitle">AI 협업을 통한 로또 번호 생성 시스템입니다!</p>
         <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 30px; flex-wrap: wrap;">
-            <button class="generate-btn" onclick="generateNumbers()" id="generateBtn" style="min-width:120px; white-space:nowrap; font-size:1em;">
-                랜덤 번호 생성
-            </button>
             <button class="generate-btn" onclick="generateAICollaborative()" id="generateAIBtn" style="background: linear-gradient(45deg, #e74c3c, #c0392b); min-width:120px; white-space:nowrap; font-size:1em;">
-                🤖 AI 협업 분석
+                🤖 AI 협업 번호 생성
             </button>
             <a href="/my-lotto" class="generate-btn" style="background: linear-gradient(45deg, #2980b9, #6dd5fa); min-width:120px; white-space:nowrap; font-size:1em;">
                 내 번호 목록
             </a>
-            <a href="/lotto-winners" class="generate-btn" style="background: linear-gradient(45deg, #8e44ad, #6c3483); min-width:120px; white-space:nowrap; display:flex; align-items:center; justify-content:center; font-size:1em;">
-                로또 1등번호 조회
-            </a>
         </div>
-    <!-- 내 번호 당첨조회 기능 제거 -->
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            랜덤 번호를 생성하고 있습니다...<br>
-            <small>잠시만 기다려주세요</small>
-        </div>
+    <!-- 기존 랜덤 생성 로딩 제거 -->
         
         <div class="loading" id="aiCollaborativeLoading" style="display:none;">
             <div class="spinner"></div>
@@ -280,37 +269,6 @@
             document.getElementById('myLottoListBtn').onclick();
         };
 
-        async function generateNumbers() {
-            const loadingEl = document.getElementById('loading');
-            const resultEl = document.getElementById('result');
-            const btn = document.getElementById('generateBtn');
-            
-            // 로딩 시작
-            btn.disabled = true;
-            btn.textContent = 'AI 분석 중...';
-            loadingEl.style.display = 'block';
-            resultEl.classList.remove('show');
-            
-            try {
-                // AI 분석 시간 (실제 API 호출로 인한 지연)
-                await new Promise(resolve => setTimeout(resolve, 3000));
-                
-                const response = await fetch('/generate');
-                const data = await response.json();
-                
-                // 결과 표시
-                displayResult(data);
-                
-            } catch (error) {
-                console.error('Error:', error);
-                alert('AI 분석 중 오류가 발생했습니다. 네트워크를 확인하고 다시 시도해주세요.');
-            } finally {
-                // 로딩 종료
-                loadingEl.style.display = 'none';
-                btn.disabled = false;
-                btn.textContent = '랜덤 번호 생성';
-            }
-        }
         
         async function generateAICollaborative() {
             const aiLoadingEl = document.getElementById('aiCollaborativeLoading');
@@ -500,10 +458,7 @@
             resultEl.classList.add('show');
         }
         
-        // 페이지 로드 시 첫 번호 자동 생성
-        window.addEventListener('load', function() {
-            setTimeout(generateNumbers, 500);
-        });
+        // 자동 생성 제거
     </script>
 </body>
 </html>
