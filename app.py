@@ -522,14 +522,26 @@ def my_lotto():
             try:
                 idx = int(idx)
                 if 0 <= idx < len(MY_LOTTO[user_id]):
+                    deleted_item = MY_LOTTO[user_id][idx]
                     del MY_LOTTO[user_id][idx]
                     save_my_lotto(MY_LOTTO)
                     flash('선택한 번호가 삭제되었습니다.', 'success')
-            except Exception:
-                flash('삭제 중 오류가 발생했습니다.', 'danger')
-    # 최신순으로 보여주기
-    lotto_list = list(reversed(MY_LOTTO[user_id]))
-    return render_template('my_lotto.html', lotto_list=lotto_list)
+                    print(f"삭제된 항목: {deleted_item.get('numbers', 'Unknown')} (인덱스: {idx})")
+                else:
+                    flash(f'잘못된 인덱스입니다. (요청: {idx}, 범위: 0-{len(MY_LOTTO[user_id])-1})', 'danger')
+            except Exception as e:
+                flash(f'삭제 중 오류가 발생했습니다: {str(e)}', 'danger')
+                print(f"삭제 오류: {e}")
+    
+    # 최신순으로 보여주기 (인덱스와 함께)
+    original_list = MY_LOTTO[user_id]
+    lotto_list_with_index = []
+    for i, item in enumerate(reversed(original_list)):
+        item_with_original_idx = item.copy()
+        item_with_original_idx['original_index'] = len(original_list) - 1 - i
+        lotto_list_with_index.append(item_with_original_idx)
+    
+    return render_template('my_lotto.html', lotto_list=lotto_list_with_index)
 
 def fetch_lotto_data(round_number):
     """동행복권 API에서 로또 당첨 번호 가져오기 (캐시 포함)"""

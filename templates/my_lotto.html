@@ -72,7 +72,7 @@
                                             {% endif %}
                                         </div>
                                         <form method="POST" style="display: inline;" onsubmit="return confirm('정말 삭제하시겠습니까?')">
-                                            <input type="hidden" name="delete_idx" value="{{ loop.index0 }}">
+                                            <input type="hidden" name="delete_idx" value="{{ item.original_index }}">
                                             <button type="submit" class="btn btn-sm btn-outline-danger">삭제</button>
                                         </form>
                                     </div>
@@ -112,6 +112,7 @@
                                                     <br>결과: {{ item.result }}
                                                 {% endif %}
                                             {% endif %}
+                                            <br><small class="text-info">ID: {{ item.original_index }}</small>
                                         </div>
                                     </div>
                                 </div>
