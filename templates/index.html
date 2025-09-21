@@ -301,6 +301,9 @@
                     throw new Error(data.error || 'AI 협업 분석에 실패했습니다.');
                 }
                 
+                // 최종 선택 단계 업데이트 (결과에 따라)
+                updateFinalSelectionStep(data);
+                
                 // 결과 표시 (AI 협업 정보 포함)
                 displayAICollaborativeResult(data);
                 
@@ -334,7 +337,7 @@
                 '🧠 Claude 분석 완료!', 
                 '💎 Gemini 분석 완료!',
                 '🔍 중복 제거 및 후보 선정 완료!',
-                '🎯 최종 번호 선정 완료!'
+                '🎯 최종 번호 선정 진행 중...'
             ];
             
             for (let i = 0; i < steps.length; i++) {
@@ -346,6 +349,19 @@
                 
                 if (i < steps.length - 1) {
                     document.getElementById(steps[i + 1]).style.opacity = '1';
+                }
+            }
+        }
+        
+        function updateFinalSelectionStep(data) {
+            const step5El = document.getElementById('step5');
+            if (step5El && data.process_info) {
+                if (data.process_info.claude_selection_failed) {
+                    step5El.style.color = '#e67e22';
+                    step5El.innerHTML = '⚠️ Claude 최종 선택 실패 - 자동 선택됨';
+                } else {
+                    step5El.style.color = '#27ae60';
+                    step5El.innerHTML = '✅ Claude 최종 선택 완료!';
                 }
             }
         }
@@ -417,11 +433,17 @@
                     exclusionInfo = `<br>🚫 기존 1등 당첨번호 ${info.excluded_by_winners}개 제외됨`;
                 }
                 
+                // Claude 선택 실패 시 경고 스타일 적용
+                let selectionReasonHtml = `<small>선택 이유: ${info.selection_reason}</small>`;
+                if (info.claude_selection_failed) {
+                    selectionReasonHtml = `<small style="color: #e74c3c; font-weight: bold; background: rgba(231, 76, 60, 0.1); padding: 5px; border-radius: 5px; display: inline-block; margin-top: 5px;">⚠️ ${info.selection_reason}</small>`;
+                }
+                
                 analysisInfoEl.innerHTML = `
                     🤖 GPT: ${info.gpt_count}개 | 🧠 Claude: ${info.claude_count}개 | 💎 Gemini: ${info.gemini_count}개<br>
                     총 ${info.total_suggestions}개 제안 → ${info.filtered_by_winners || info.total_suggestions}개 필터링${exclusionInfo}<br>
                     ${info.unique_after_dedup}개 고유 후보 → 최종 3개 선정<br>
-                    <small>선택 이유: ${info.selection_reason}</small>
+                    ${selectionReasonHtml}
                 `;
             } else {
                 analysisInfoEl.style.display = 'none';

@@ -44,6 +44,7 @@ login_manager.login_view = 'login'
 USER_DATA_FILE = './data/user_data.json'
 MY_LOTTO_FILE = './data/my_lotto.json'
 API_KEYS_FILE = './data/api_keys.json'
+LOTTO_CACHE_FILE = './data/lotto_cache.json'
 
 # 암호화 키 생성 (실제 서비스에서는 환경변수로 관리)
 ENCRYPTION_KEY = base64.urlsafe_b64encode(b'your-32-byte-encryption-key-here')[:32]
@@ -77,6 +78,87 @@ def load_my_lotto():
 def save_my_lotto(my_lotto):
     with open(MY_LOTTO_FILE, 'w', encoding='utf-8') as f:
         json.dump(my_lotto, f, ensure_ascii=False, indent=2)
+
+# 로또 캐시 관리 함수들
+def load_lotto_cache():
+    """로또 당첨번호 캐시 로드"""
+    if os.path.exists(LOTTO_CACHE_FILE):
+        try:
+            with open(LOTTO_CACHE_FILE, 'r', encoding='utf-8') as f:
+                cache_data = json.load(f)
+                # 캐시 유효성 검사 (24시간 이내)
+                cache_time = datetime.fromisoformat(cache_data.get('last_updated', '2000-01-01'))
+                if (datetime.now() - cache_time).total_seconds() < 24 * 3600:  # 24시간
+                    return cache_data.get('data', {})
+                else:
+                    print("캐시가 만료되었습니다. 새로 조회합니다.")
+        except Exception as e:
+            print(f"캐시 로드 실패: {e}")
+    return {}
+
+def save_lotto_cache(cache_data):
+    """로또 당첨번호 캐시 저장"""
+    try:
+        # data 디렉토리가 없으면 생성
+        os.makedirs('./data', exist_ok=True)
+        
+        cache_structure = {
+            'last_updated': datetime.now().isoformat(),
+            'data': cache_data
+        }
+        
+        with open(LOTTO_CACHE_FILE, 'w', encoding='utf-8') as f:
+            json.dump(cache_structure, f, ensure_ascii=False, indent=2)
+        print(f"로또 캐시 저장 완료: {len(cache_data)}개 회차")
+    except Exception as e:
+        print(f"캐시 저장 실패: {e}")
+
+def get_cached_lotto_data(round_number):
+    """캐시에서 특정 회차 데이터 조회"""
+    cache = load_lotto_cache()
+    round_key = str(round_number)
+    return cache.get(round_key)
+
+def cache_lotto_data(round_number, numbers, bonus, date):
+    """특정 회차 데이터를 캐시에 저장"""
+    try:
+        cache = load_lotto_cache()
+        round_key = str(round_number)
+        cache[round_key] = {
+            'numbers': numbers,
+            'bonus': bonus,
+            'date': date,
+            'cached_at': datetime.now().isoformat()
+        }
+        save_lotto_cache(cache)
+    except Exception as e:
+        print(f"캐시 저장 실패 ({round_number}회차): {e}")
+
+def clear_lotto_cache():
+    """로또 캐시 삭제 (관리용)"""
+    try:
+        if os.path.exists(LOTTO_CACHE_FILE):
+            os.remove(LOTTO_CACHE_FILE)
+            print("로또 캐시가 삭제되었습니다.")
+        else:
+            print("삭제할 캐시 파일이 없습니다.")
+    except Exception as e:
+        print(f"캐시 삭제 실패: {e}")
+
+def get_cache_stats():
+    """캐시 통계 정보 반환"""
+    try:
+        cache = load_lotto_cache()
+        if not cache:
+            return "캐시가 비어있습니다."
+        
+        cache_file_size = os.path.getsize(LOTTO_CACHE_FILE) if os.path.exists(LOTTO_CACHE_FILE) else 0
+        cache_data = json.load(open(LOTTO_CACHE_FILE, 'r', encoding='utf-8')) if os.path.exists(LOTTO_CACHE_FILE) else {}
+        last_updated = cache_data.get('last_updated', '알 수 없음')
+        
+        return f"캐시된 회차: {len(cache)}개, 파일 크기: {cache_file_size/1024:.1f}KB, 마지막 업데이트: {last_updated}"
+    except Exception as e:
+        return f"캐시 통계 조회 실패: {e}"
 
 # API 키 관리 함수들
 def encrypt_api_key(api_key):
@@ -230,6 +312,33 @@ def user_list():
             flash('존재하지 않는 사용자입니다.', 'danger')
     filtered_users = {k: v for k, v in USERS.items() if k != 'admin'}
     return render_template('user_list.html', users=filtered_users)
+
+# 캐시 관리 엔드포인트 (관리자용)
+@app.route('/cache-stats')
+@login_required
+def cache_stats():
+    # 관리자만 접근 가능
+    user = USERS.get(current_user.get_id())
+    if not user or not user.get('is_admin'):
+        flash('관리자만 접근할 수 있습니다.', 'danger')
+        return redirect(url_for('index'))
+    
+    stats = get_cache_stats()
+    return jsonify({'stats': stats})
+
+@app.route('/clear-cache', methods=['POST'])
+@login_required
+def clear_cache():
+    # 관리자만 접근 가능
+    user = USERS.get(current_user.get_id())
+    if not user or not user.get('is_admin'):
+        return jsonify({'success': False, 'error': '관리자만 접근할 수 있습니다.'}), 403
+    
+    try:
+        clear_lotto_cache()
+        return jsonify({'success': True, 'message': '캐시가 성공적으로 삭제되었습니다.'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # User 모델
 class User(UserMixin):
@@ -390,6 +499,14 @@ def validate_lotto_combination(numbers):
         return False
     return True
 
+def get_analysis_message(analysis_type, confidence_score):
+    """분석 타입에 따른 메시지 생성"""
+    messages = {
+        "랜덤": f"🎲 랜덤으로 생성된 행운의 번호입니다! (신뢰도: {confidence_score}%)",
+        "AI 협업": f"🤖🧠💎 AI 협업을 통해 선별된 번호입니다! (신뢰도: {confidence_score}%)"
+    }
+    return messages.get(analysis_type, f"🍀 분석을 통해 선별된 번호입니다! (신뢰도: {confidence_score}%)")
+
 
 # 내 번호 목록 및 삭제 페이지/기능 추가
 @app.route('/my-lotto', methods=['GET', 'POST'])
@@ -415,8 +532,16 @@ def my_lotto():
     return render_template('my_lotto.html', lotto_list=lotto_list)
 
 def fetch_lotto_data(round_number):
-    """동행복권 API에서 로또 당첨 번호 가져오기"""
+    """동행복권 API에서 로또 당첨 번호 가져오기 (캐시 포함)"""
+    # 먼저 캐시에서 확인
+    cached_data = get_cached_lotto_data(round_number)
+    if cached_data:
+        print(f"캐시에서 {round_number}회차 데이터 로드")
+        return cached_data['numbers'], cached_data['bonus'], cached_data['date']
+    
+    # 캐시에 없으면 API 호출
     try:
+        print(f"API에서 {round_number}회차 데이터 조회 중...")
         url = f"https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo={round_number}"
         response = requests.get(url, timeout=10)
         data = response.json()
@@ -428,6 +553,11 @@ def fetch_lotto_data(round_number):
             ]
             bonus = data['bnusNo']
             date = data['drwNoDate']
+            
+            # 성공적으로 조회한 데이터를 캐시에 저장
+            cache_lotto_data(round_number, numbers, bonus, date)
+            print(f"{round_number}회차 데이터 캐시에 저장 완료")
+            
             return numbers, bonus, date
         return None, None, None
     except Exception as e:
@@ -455,7 +585,7 @@ def get_latest_round():
     return max(1, estimated_round)
 
 def get_all_winning_combinations():
-    """모든 기존 1등 당첨번호 조합을 가져오기"""
+    """모든 기존 1등 당첨번호 조합을 가져오기 (캐시 최적화)"""
     winning_combinations = set()
     latest_round = get_latest_round()
     
@@ -464,16 +594,33 @@ def get_all_winning_combinations():
     # 최근 100회차만 조회 (API 부하 고려)
     start_round = max(1, latest_round - 99)
     
+    # 캐시를 한 번에 로드
+    cache = load_lotto_cache()
+    api_calls_made = 0
+    cache_hits = 0
+    
     for round_num in range(start_round, latest_round + 1):
-        numbers, bonus, date = fetch_lotto_data(round_num)
+        # 캐시 먼저 확인
+        round_key = str(round_num)
+        if round_key in cache:
+            cached_data = cache[round_key]
+            numbers = cached_data['numbers']
+            cache_hits += 1
+        else:
+            # 캐시에 없으면 API 호출
+            numbers, bonus, date = fetch_lotto_data(round_num)
+            api_calls_made += 1
+        
         if numbers:
             # 메인 번호 6개를 튜플로 변환하여 set에 추가
             combination = tuple(sorted(numbers))
             winning_combinations.add(combination)
+            
             if round_num % 10 == 0:  # 10회차마다 진행상황 출력
-                print(f"{round_num}회차까지 조회 완료...")
+                print(f"{round_num}회차까지 조회 완료... (캐시: {cache_hits}회, API: {api_calls_made}회)")
     
     print(f"총 {len(winning_combinations)}개의 기존 당첨번호 조합 수집 완료")
+    print(f"성능 통계 - 캐시 히트: {cache_hits}회, API 호출: {api_calls_made}회 (캐시 효율: {cache_hits/(cache_hits+api_calls_made)*100:.1f}%)")
     return winning_combinations
 
 def filter_ai_suggestions_against_winners(ai_suggestions):
@@ -595,19 +742,24 @@ async def generate_ai_collaborative_lotto_numbers(user_id):
     # 최종 선택
     selected_index = 0
     selection_reason = "첫 번째 후보 자동 선택"
+    claude_selection_failed = False
     
     try:
         print("🎯 Claude에게 최종 선택 요청 중...")
         selected_index, selection_reason = await ask_claude_for_final_selection(final_candidates, user_id)
     except Exception as e:
+        claude_selection_failed = True
         errors.append(f"Claude 최종 선택: {str(e)}")
         print(f"Claude 최종 선택 실패: {e}")
+        selection_reason = f"⚠️ Claude 최종 선택 실패 ({str(e)[:50]}...) - 첫 번째 후보로 자동 선택됨"
     
     # 최종 선택된 번호
     if 0 <= selected_index < len(final_candidates):
         final_numbers = final_candidates[selected_index]
     else:
         final_numbers = final_candidates[0]
+        if not claude_selection_failed:
+            selection_reason = "⚠️ Claude가 잘못된 인덱스를 반환 - 첫 번째 후보로 자동 선택됨"
     
     # 보너스 번호 생성
     bonus_candidates = [i for i in range(1, 46) if i not in final_numbers]
@@ -625,6 +777,7 @@ async def generate_ai_collaborative_lotto_numbers(user_id):
         'final_candidates': final_candidates,
         'selected_index': selected_index,
         'selection_reason': selection_reason,
+        'claude_selection_failed': claude_selection_failed,
         'errors': errors
     }
     
