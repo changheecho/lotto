@@ -1,7 +1,7 @@
 from flask import Flask, render_template, jsonify, request, redirect, url_for, flash, session, Markup
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-import random
+import secrets
 import requests
 from datetime import datetime, timedelta
 import json
@@ -653,10 +653,14 @@ def filter_ai_suggestions_against_winners(ai_suggestions):
 
 def generate_fallback_numbers():
     """API 실패 시 대체 번호 생성"""
-    main_numbers = sorted(random.sample(range(1, 46), 6))
+    # secrets 모듈을 사용하여 암호학적으로 안전한 난수 생성
+    secure_random = secrets.SystemRandom()
+    main_numbers = sorted(secure_random.sample(range(1, 46), 6))
+    
     remaining_numbers = [i for i in range(1, 46) if i not in main_numbers]
-    bonus_number = random.choice(remaining_numbers)
-    return main_numbers, bonus_number, "랜덤"
+    bonus_number = secure_random.choice(remaining_numbers)
+    
+    return main_numbers, bonus_number, "랜덤 (강화됨)"
 
 async def generate_ai_collaborative_lotto_numbers(user_id):
     """AI 협업을 통한 로또 번호 생성"""
@@ -734,8 +738,9 @@ async def generate_ai_collaborative_lotto_numbers(user_id):
     while len(final_candidates) < 3:
         # 기존 당첨번호와 중복되지 않는 랜덤 번호 생성
         max_attempts = 100  # 무한루프 방지
+        secure_random = secrets.SystemRandom()
         for attempt in range(max_attempts):
-            random_combo = sorted(random.sample(range(1, 46), 6))
+            random_combo = sorted(secure_random.sample(range(1, 46), 6))
             combo_tuple = tuple(random_combo)
             
             # 기존 당첨번호 및 이미 선정된 번호와 중복 확인
@@ -747,7 +752,7 @@ async def generate_ai_collaborative_lotto_numbers(user_id):
         else:
             # 최대 시도 횟수 초과 시 기본 랜덤 번호 추가
             print("⚠️ 대체 번호 생성 실패, 기본 랜덤 번호 사용")
-            random_combo = sorted(random.sample(range(1, 46), 6))
+            random_combo = sorted(secure_random.sample(range(1, 46), 6))
             final_candidates.append(random_combo)
             break
     
@@ -775,7 +780,8 @@ async def generate_ai_collaborative_lotto_numbers(user_id):
     
     # 보너스 번호 생성
     bonus_candidates = [i for i in range(1, 46) if i not in final_numbers]
-    bonus_number = random.choice(bonus_candidates)
+    secure_random = secrets.SystemRandom()
+    bonus_number = secure_random.choice(bonus_candidates)
     
     # 과정 정보 반환
     process_info = {
